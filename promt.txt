@@ -1,0 +1,75 @@
+Actúa como un Senior Flutter + Android (Kotlin) engineer. Necesito una app Flutter (Android 11/12) que se ejecute 24/7 y transmita telemetría de batería por Bluetooth Low Energy usando BLE Advertising (tipo beacon) para que un ESP32 la reciba.
+
+REQUISITOS FUNCIONALES
+1) App Flutter con pantalla simple:
+   - Muestra: porcentaje de batería, estado (charging/discharging/full), temperatura (°C), voltaje (mV), y timestamp.
+   - Botón: “Iniciar transmisión”
+   - Botón: “Detener”
+   - Campo: “ID de Tablet” (uint16) y “Intervalo de advertising (segundos)”.
+   - Switch: “Iniciar al encender (boot)”.
+
+2) Ejecución en background confiable:
+   - Debe usar Foreground Service real en Android (notificación persistente: “Monitoreo de batería activo”).
+   - Debe poder iniciar automáticamente al boot si el usuario activó el switch.
+   - Debe sobrevivir a Doze/batería optimizations (mostrar pantalla/instrucciones para excluir optimización, pero no asumir permisos root).
+
+3) Lectura de batería:
+   - En Android, obtener los valores con BatteryManager / ACTION_BATTERY_CHANGED:
+     level (%), status, plugged, temperature (decimas °C si aplica), voltage (mV).
+   - Exponerlo a Flutter mediante Platform Channels (MethodChannel / EventChannel).
+
+4) BLE Advertising:
+   - Transmitir datos como Manufacturer Data (o Service Data) en advertising.
+   - Payload binario compacto:
+     - 2 bytes: tabletId (uint16, little-endian)
+     - 1 byte: batteryPercent (0-100)
+     - 1 byte: flags (bit0=charging, bit1=full, bit2=plugged)
+     - 2 bytes: temperatureC_x10 (int16, ej 253 = 25.3°C)
+     - 2 bytes: voltage_mV (uint16)
+     - 1 byte: seq (0-255)
+   - Advertising interval configurable (p.ej. 2–5s) implementado con timer en el servicio; re-emitir payload con seq incrementando.
+
+5) Compatibilidad Android 11:
+   - Agregar permisos correctos en AndroidManifest (BLUETOOTH, BLUETOOTH_ADMIN, BLUETOOTH_ADVERTISE/SCAN/CONNECT si aplica según target, FOREGROUND_SERVICE, RECEIVE_BOOT_COMPLETED).
+   - Manejar runtime permissions necesarias (location si el framework lo exige para BLE scan/advertise en ciertas versiones).
+   - Mantener targetSdk actual, pero asegurar compatibilidad con Android 11.
+
+6) Dependencias:
+   - Usa Flutter estable.
+   - Para BLE advertising puedes usar plugin (si existe) o implementar en nativo Kotlin con BluetoothLeAdvertiser.
+   - Prioriza implementación nativa Kotlin para advertising por confiabilidad.
+   - Para foreground service: usar Kotlin y comunicar start/stop desde Flutter.
+
+ENTREGABLES
+A) Estructura de proyecto con:
+   - pubspec.yaml (dependencias mínimas).
+   - Código Dart: UI + manejo de canales (start/stop, settings).
+   - Código Kotlin:
+     - ForegroundService que:
+       - Lee batería (BatteryManager)
+       - Publica BLE advertising con BluetoothLeAdvertiser
+       - Actualiza notificación
+     - BootReceiver que inicia el servicio si el usuario lo habilitó (guardar preferencia en SharedPreferences).
+     - Channels (MethodChannel) para:
+       startService(tabletId, intervalSec)
+       stopService()
+       getBatterySnapshot()
+       setAutoStart(enabled)
+
+B) AndroidManifest.xml completo con:
+   - Service declarado con foregroundServiceType apropiado.
+   - Receiver BOOT_COMPLETED.
+   - Permisos y features bluetooth_le.
+   - Nota si hay diferencias por targetSdk >= 31, pero el foco es Android 11.
+
+C) Instrucciones de compilación y pruebas:
+   - Cómo probar que el advertising está saliendo (app scanner BLE).
+   - Tips para evitar que Android mate el servicio (battery optimization exclusion).
+
+IMPORTANTE
+- Escribe el código completo y compilable.
+- Mantén el payload exactamente con el formato descrito (little-endian).
+- No uses pseudocódigo: necesito archivos y contenido (Dart + Kotlin + manifest).
+- Evita usar librerías innecesarias; prefiero nativo Kotlin para BLE advertiser.
+
+Genera la solución ahora.
