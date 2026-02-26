@@ -72,9 +72,9 @@ async def main():
             return
         data = decode(payload)
         if data is None:
-            rssi = getattr(advertisement_data, "rssi", None)
-            rssi_text = f"{rssi}" if rssi is not None else "N/A"
-            print(f"{datetime.now().strftime('%H:%M:%S')} | {name} | {device.address} | RSSI {rssi_text} | raw={payload.hex()} | ERROR=payload corto")
+            # rssi = getattr(advertisement_data, "rssi", None)
+            # rssi_text = f"{rssi}" if rssi is not None else "N/A"
+            # print(f"{datetime.now().strftime('%H:%M:%S')} | {name} | {device.address} | RSSI {rssi_text} | raw={payload.hex()} | ERROR=payload corto")
             return
         rssi = getattr(advertisement_data, "rssi", None)
         rssi_text = f"{rssi}" if rssi is not None else "N/A"
