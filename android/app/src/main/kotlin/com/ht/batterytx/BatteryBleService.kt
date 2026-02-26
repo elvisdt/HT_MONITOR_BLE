@@ -20,6 +20,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -44,6 +45,7 @@ class BatteryBleService : Service() {
     private lateinit var handlerThread: HandlerThread
     private lateinit var handler: Handler
     private var advertiser: BluetoothLeAdvertiser? = null
+    private var wakeLock: PowerManager.WakeLock? = null
 
     private val advertiseCallback = object : AdvertiseCallback() {
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
@@ -112,6 +114,7 @@ class BatteryBleService : Service() {
         running = true
         Prefs.setServiceRunning(this, true)
         setBleStatus("starting", "")
+        acquireWakeLock()
         handler.removeCallbacksAndMessages(null)
         handler.post(advertiseRunnable)
 
@@ -124,6 +127,7 @@ class BatteryBleService : Service() {
         setBleStatus("stopped", "")
         handler.removeCallbacksAndMessages(null)
         stopAdvertising()
+        releaseWakeLock()
         handlerThread.quitSafely()
         unregisterReceiver(btStateReceiver)
         super.onDestroy()
@@ -253,6 +257,32 @@ class BatteryBleService : Service() {
     private fun setBleStatus(status: String, error: String? = null) {
         bleStatus = status
         Prefs.setBleStatus(this, status, error)
+    }
+
+    private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
+        val pm = getSystemService(PowerManager::class.java)
+        wakeLock = pm.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "HTBatteryTX:BleWakeLock",
+        ).apply {
+            setReferenceCounted(false)
+            try {
+                acquire()
+            } catch (_: Exception) {
+                // Ignore if system blocks wakelock.
+            }
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            wakeLock?.takeIf { it.isHeld }?.release()
+        } catch (_: Exception) {
+            // Ignore.
+        } finally {
+            wakeLock = null
+        }
     }
 
     private fun createNotificationChannel() {
