@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,7 +16,7 @@ class BatteryBleApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'HT Monitor',
+      title: 'HT BatteryTX',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
         useMaterial3: true,
@@ -353,7 +353,7 @@ class _BatteryBlePageState extends State<BatteryBlePage> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('HT Monitor'),
+          title: const Text('HT BatteryTX'),
           bottom: const TabBar(
             tabs: [
               Tab(text: 'Estado'),
@@ -377,6 +377,9 @@ class _BatteryBlePageState extends State<BatteryBlePage> {
         ? '-'
         : '${snapshot.timestamp.toLocal()}'.split('.').first;
     final bool txOn = _bleStatus == 'advertising';
+    final String bleText = _bleError.isEmpty
+        ? _bleStatus
+        : '$_bleStatus - $_bleError';
     return Padding(
       padding: const EdgeInsets.all(16),
       child: ListView(
@@ -387,45 +390,142 @@ class _BatteryBlePageState extends State<BatteryBlePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Bateria actual',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Bateria actual',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Version: $_appVersion',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _statusPill('TX', txOn),
+                          const SizedBox(height: 6),
+                          _statusPill('BT', _btEnabled),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text('Porcentaje: ${snapshot?.percent ?? 0}%'),
-                  Text('Estado: ${snapshot?.status ?? 'unknown'}'),
-                  Text('Temperatura: ${snapshot?.temperatureC.toStringAsFixed(1) ?? '0.0'} C'),
-                  Text('Voltaje: ${snapshot?.voltageMv ?? 0} mV'),
-                  Text('Timestamp: $timestamp'),
-                  const SizedBox(height: 8),
-                  Text('TX: ${txOn ? 'ON' : 'OFF'}'),
-                  Text('BT: ${_btEnabled ? 'ON' : 'OFF'}'),
-                  Text(
-                    _bleError.isEmpty
-                        ? 'BLE: $_bleStatus'
-                        : 'BLE: $_bleStatus - $_bleError',
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _metric(
+                          'Porcentaje',
+                          '${snapshot?.percent ?? 0}%',
+                        ),
+                      ),
+                      Expanded(
+                        child: _metric(
+                          'Estado',
+                          snapshot?.status ?? 'unknown',
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  const Text(
-                    'Version de la app:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _metric(
+                          'Temperatura',
+                          '${snapshot?.temperatureC.toStringAsFixed(1) ?? '0.0'} C',
+                        ),
+                      ),
+                      Expanded(
+                        child: _metric(
+                          'Voltaje',
+                          '${snapshot?.voltageMv ?? 0} mV',
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text(_appVersion),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _metric(
+                          'Timestamp',
+                          timestamp,
+                        ),
+                      ),
+                      Expanded(
+                        child: _metric(
+                          'BLE',
+                          bleText,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _metric(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusPill(String label, bool isOn) {
+    final Color bg = isOn ? Colors.green.shade100 : Colors.red.shade100;
+    final Color fg = isOn ? Colors.green.shade800 : Colors.red.shade800;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label: ${isOn ? 'ON' : 'OFF'}',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: fg,
+        ),
       ),
     );
   }
@@ -456,13 +556,15 @@ class _BatteryBlePageState extends State<BatteryBlePage> {
               'Configuracion',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             TextField(
               controller: _tabletIdController,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: const InputDecoration(
-                labelText: 'ID de Tablet (uint16)',
+                labelText: 'ID de Tablet',
+                helperText: 'Rango: 0 - 65535',
+                prefixIcon: Icon(Icons.confirmation_number_outlined),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -472,7 +574,10 @@ class _BatteryBlePageState extends State<BatteryBlePage> {
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: const InputDecoration(
-                labelText: 'Intervalo de advertising (segundos)',
+                labelText: 'Intervalo de advertising',
+                helperText: 'Rango: 1 - 60 segundos',
+                suffixText: 's',
+                prefixIcon: Icon(Icons.timer_outlined),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -480,13 +585,18 @@ class _BatteryBlePageState extends State<BatteryBlePage> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Iniciar al encender (boot)'),
+              subtitle: const Text('Arranque automatico al reiniciar'),
               value: _autoStart,
               onChanged: _setAutoStart,
             ),
             const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: _applySettings,
-              child: const Text('Guardar cambios'),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _applySettings,
+                icon: const Icon(Icons.save_outlined),
+                label: const Text('Guardar cambios'),
+              ),
             ),
           ],
         ),
@@ -559,7 +669,7 @@ class _BatteryBlePageState extends State<BatteryBlePage> {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Ruta tipica: Ajustes > Bateria > Optimizacion de bateria > Todas las apps > HT Monitor > No optimizar.',
+              'Ruta tipica: Ajustes > Bateria > Optimizacion de bateria > Todas las apps > HT BatteryTX > No optimizar.',
             ),
           ],
         ),

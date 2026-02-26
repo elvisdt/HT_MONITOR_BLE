@@ -1,4 +1,4 @@
-﻿package com.example.app_bt_2
+package com.ht.batterytx
 
 import android.Manifest
 import android.app.Activity

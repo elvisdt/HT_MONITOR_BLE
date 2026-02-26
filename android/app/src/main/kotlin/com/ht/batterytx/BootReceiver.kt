@@ -1,4 +1,4 @@
-﻿package com.example.app_bt_2
+package com.ht.batterytx
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -16,7 +16,10 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
-        if (action != Intent.ACTION_BOOT_COMPLETED && action != Intent.ACTION_LOCKED_BOOT_COMPLETED) {
+        if (action != Intent.ACTION_BOOT_COMPLETED &&
+            action != Intent.ACTION_LOCKED_BOOT_COMPLETED &&
+            action != Intent.ACTION_USER_UNLOCKED
+        ) {
             return
         }
         if (!Prefs.getAutoStart(context)) {
@@ -25,6 +28,17 @@ class BootReceiver : BroadcastReceiver() {
 
         val tabletId = Prefs.getTabletId(context)
         val intervalSec = Prefs.getIntervalSec(context)
+
+        // Start immediately (best effort) and also schedule a delayed start as fallback.
+        val serviceIntent = Intent(context, BatteryBleService::class.java).apply {
+            putExtra(BatteryBleService.EXTRA_TABLET_ID, tabletId)
+            putExtra(BatteryBleService.EXTRA_INTERVAL_SEC, intervalSec)
+        }
+        try {
+            ContextCompat.startForegroundService(context, serviceIntent)
+        } catch (_: Exception) {
+            // Ignore; fallback alarm below.
+        }
 
         val alarmIntent = Intent(context, BootDelayReceiver::class.java).apply {
             putExtra(BatteryBleService.EXTRA_TABLET_ID, tabletId)

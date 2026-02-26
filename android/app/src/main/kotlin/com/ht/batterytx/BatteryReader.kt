@@ -1,4 +1,4 @@
-﻿package com.example.app_bt_2
+package com.ht.batterytx
 
 import android.content.Context
 import android.content.Intent
