@@ -1,13 +1,14 @@
-﻿package com.example.app_bt_2
+package com.ht.batterytx
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 object PayloadBuilder {
     const val MANUFACTURER_ID = 0xFFFF
+    const val MAGIC = 0xAABB
 
     fun build(tabletId: Int, data: BatteryData, seq: Int): ByteArray {
-        val buffer = ByteBuffer.allocate(9).order(ByteOrder.LITTLE_ENDIAN)
+        val buffer = ByteBuffer.allocate(11).order(ByteOrder.LITTLE_ENDIAN)
         val safeTabletId = tabletId and 0xFFFF
         val safePercent = data.percent.coerceIn(0, 100)
         val flags = (if (data.charging) 1 else 0) or
@@ -17,6 +18,7 @@ object PayloadBuilder {
         val safeVoltage = data.voltageMv.coerceIn(0, 0xFFFF)
         val safeSeq = seq and 0xFF
 
+        buffer.putShort(MAGIC.toShort())
         buffer.putShort(safeTabletId.toShort())
         buffer.put(safePercent.toByte())
         buffer.put(flags.toByte())

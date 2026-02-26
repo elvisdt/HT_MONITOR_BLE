@@ -4,6 +4,7 @@ from datetime import datetime
 from bleak import BleakScanner
 
 TARGET_COMPANY_ID = 0xFFFF  # mismo que en la app
+MAGIC = 0xAABB
 FILTER_BY_NAME = False
 TARGET_NAME = "HT-MT"
 NAME_MATCH_MODE = "prefix"  # "prefix" o "exact"
@@ -11,11 +12,35 @@ SHOW_RAW = True
 SHOW_MULTILINE = False
 ONLY_ON_CHANGE = True
 _last_seq_by_addr = {}
+STRICT_LENGTH = True
+EXPECTED_LEN = 11
+# Filtro extra (opcional)
+FILTER_TABLET_ID = None  # ejemplo: 1
+# Validaciones para descartar basura
+MIN_BATT = 0
+MAX_BATT = 100
+MIN_TEMP_C = -20.0
+MAX_TEMP_C = 80.0
+MIN_VOLT_MV = 2500
+MAX_VOLT_MV = 5000
 
 def decode(payload: bytes):
-    if len(payload) < 9:
+    if STRICT_LENGTH and len(payload) != EXPECTED_LEN:
         return None
-    tablet_id, battery, flags, temp_x10, voltage, seq = struct.unpack("<HBBhHB", payload[:9])
+    if len(payload) < EXPECTED_LEN:
+        return None
+    magic, tablet_id, battery, flags, temp_x10, voltage, seq = struct.unpack("<HHBBhHB", payload[:11])
+    if magic != MAGIC:
+        return None
+    temp_c = temp_x10 / 10.0
+    if not (MIN_BATT <= battery <= MAX_BATT):
+        return None
+    if not (MIN_TEMP_C <= temp_c <= MAX_TEMP_C):
+        return None
+    if not (MIN_VOLT_MV <= voltage <= MAX_VOLT_MV):
+        return None
+    if FILTER_TABLET_ID is not None and tablet_id != FILTER_TABLET_ID:
+        return None
     return {
         "tablet_id": tablet_id,
         "battery_percent": battery,
@@ -23,7 +48,7 @@ def decode(payload: bytes):
         "charging": bool(flags & 0x01),
         "full": bool(flags & 0x02),
         "plugged": bool(flags & 0x04),
-        "temp_c": temp_x10 / 10.0,
+        "temp_c": temp_c,
         "voltage_mv": voltage,
         "seq": seq,
     }
@@ -74,7 +99,7 @@ async def main():
         if data is None:
             rssi = getattr(advertisement_data, "rssi", None)
             rssi_text = f"{rssi}" if rssi is not None else "N/A"
-            print(f"{datetime.now().strftime('%H:%M:%S')} | {name} | {device.address} | RSSI {rssi_text} | raw={payload.hex()} | ERROR=payload corto")
+            print(f"{datetime.now().strftime('%H:%M:%S')} | {name} | {device.address} | RSSI {rssi_text} | raw={payload.hex()} | ERROR=payload invalido (len={len(payload)})")
             return
         rssi = getattr(advertisement_data, "rssi", None)
         rssi_text = f"{rssi}" if rssi is not None else "N/A"
